@@ -4,14 +4,19 @@ Gio mustard
 """
 from scrapy.utils.project import get_project_settings
 from scrapy.crawler import CrawlerProcess
-from scraper.pipelines import PagePipeline
-from scraper.spiders.page import PageSpider
+try:
+    from scraper.pipelines import PagePipeline
+    from scraper.spiders.page import PageSpider
+except ModuleNotFoundError:
+    from .scraper.pipelines import PagePipeline
+    from .scraper.spiders.page import PageSpider
 
 class Scrapper: # pylint: disable=too-few-public-methods
     """
     The class for crawl any web page and save the results in a pipeline.
     """
     def __init__(self, show_logs=False,callback:callable=lambda _:...):
+        self.__is_testing = show_logs
         self.__process = CrawlerProcess(self.__get_settings(show_logs))
         deferred =  self.__process.join()
         deferred.addCallback(callback) # * This callback is called when a start method is end. pylint: disable=no-member
@@ -42,7 +47,7 @@ class Scrapper: # pylint: disable=too-few-public-methods
         grouped_links = self.__group_links(links , items_per_group=1000)
 
         for group in grouped_links:
-            self.__process.crawl(PageSpider, links=group)
+            self.__process.crawl(PageSpider, links=group,is_testing=self.__is_testing)
         self.__process.start()
         return tuple(PagePipeline.from_responses(link) for link in links)
 
@@ -58,7 +63,7 @@ if __name__ == '__main__':
             None
         """
         print(f"---- Crawl completed si que si {argument} ----")
-    scrapper = Scrapper(show_logs=False,callback=finish_crawl)
+    scrapper = Scrapper(show_logs=True,callback=finish_crawl)
     links_to_crawl = [
         "https://supermaven.com/",
 

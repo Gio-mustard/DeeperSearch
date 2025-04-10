@@ -82,6 +82,28 @@ class PagePipeline:
         """
         return cls.responses.get(link)
 
+    @classmethod
+    def add_to_responses(cls,link:str,summarize:str,content:str)->bool:
+        """
+        Adds an item to the responses
+        
+        Args:
+            link (str): The link that the item is associated with
+            item (dict): The item to be added
+        
+        Returns:
+            bool: True if the item was added successfully, False if it wasnt
+        """
+        if not isinstance(link,str) or not isinstance(summarize,str) or not isinstance(content,str):
+            return False
+        # TODO : What happen when the item is already on responses
+        cls.responses[link] = {
+            "summarize":summarize,
+            "link":link,
+            "content":content
+        }
+        return True
+
     def __init__(self):
         self.log_manager = LogManager()
         if self.USE_LOGS:
@@ -100,12 +122,6 @@ class PagePipeline:
         """
 
         try:
-            self.responses[item['link']] = {
-                'summarize':item['summarize'],
-                'content':item['content'],
-                'link':item['link']
-            }
-
             if self.USE_LOGS and hasattr(self, 'log_manager') and hasattr(self, 'output_file'):
                 try:
                     self.log_manager.write_log(self.output_file, item)

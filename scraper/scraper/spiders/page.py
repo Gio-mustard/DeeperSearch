@@ -4,7 +4,12 @@ This module contains a Spider class for scraping web pages.
 """
 from typing import Iterator
 from scrapy import Request, Spider
-from scraper.items import PageItem
+
+from scraper.scraper.pipelines import PagePipeline
+try:
+    from scraper.items import PageItem
+except ModuleNotFoundError:
+    from ..items import PageItem
 
 class PageSpider(Spider):
     """
@@ -22,11 +27,6 @@ class PageSpider(Spider):
 
     name = 'pageSpider'
     links = []
-    custom_settings = {
-        'ITEM_PIPELINES': {
-            'scraper.pipelines.PagePipeline': 300,
-        }
-    }
 
     def __init__(self, links: tuple|list[str], *args, **kwargs):
         """
@@ -38,6 +38,20 @@ class PageSpider(Spider):
             **kwargs: Additional keyword arguments.
         """
         super().__init__(*args, **kwargs)
+        self.__is_testing:bool = kwargs.get('is_testing', False)
+        print(f"{self.__is_testing=}")
+        if self.__is_testing:
+            self.custom_settings = {
+                    'ITEM_PIPELINES': {
+                        'scraper.pipelines.PagePipeline': 300,
+                        }
+                    }
+        else:
+            self.custom_settings = {
+                'ITEM_PIPELINES': {
+                    'scraper.scraper.pipelines.PagePipeline': 300,
+                    }
+                }
         self.set_links(links)
 
     def __check_links(self, links: tuple|list[str]) -> None:
@@ -109,15 +123,18 @@ class PageSpider(Spider):
             PageItem: A Scrapy item containing the extracted data.
         """
         if not self.__response_is_ok(response):
-            print(("*"*15)+f" Failed to fetch {response.url}"+" *"*15)
+            if self.__is_testing:
+                print(("*"*15)+f" Failed to fetch {response.url}"+" *"*15)
             return
-        print("*"*5,f"parsing => {response.url}","*"*5)
+        if self.__is_testing:
+            print("*"*5,f"parsing => {response.url}","*"*5)
         title = (response.css('h1::text').get()
                     or response.css('title::text').get()
                     or "No title found")
         content = response.text
         if len(content) < 10:#Min of content
             self.logger.info(f"Content from {response.url} might be too short")
+        PagePipeline.add_to_responses(response.url,title,content)
         yield PageItem(
             link=response.url,
             summarize=title,
